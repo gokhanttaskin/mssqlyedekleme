@@ -29,14 +29,16 @@ import StorageIcon from '@mui/icons-material/Storage';
 import BackupIcon from '@mui/icons-material/Backup';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { Select, MenuItem } from '@mui/material';
+import { useI18n } from './i18n';
 
 declare global {
   interface Window {
     api?: {
-      testConnection: (payload: { server: string; user: string; password: string }) => Promise<{ ok: boolean; error?: string }>;
-      listDatabases: (payload: { server: string; user: string; password: string }) => Promise<{ ok: boolean; databases?: string[]; error?: string }>;
-      backupDatabases: (payload: { server: string; user: string; password: string; databases: string[]; folder: string }) => Promise<{ ok: boolean; results?: { db: string; ok: boolean; file?: string; error?: string }[]; error?: string }>;
-      selectFolder: () => Promise<{ ok: boolean; folder?: string }>;
+      testConnection: (payload: { server: string; user: string; password: string }) => Promise<{ ok: boolean; error?: string; info?: { productVersion?: string; productLevel?: string; edition?: string; year?: string } }>
+      listDatabases: (payload: { server: string; user: string; password: string }) => Promise<{ ok: boolean; databases?: string[]; error?: string }>
+      backupDatabases: (payload: { server: string; user: string; password: string; databases: string[]; folder: string }) => Promise<{ ok: boolean; results?: { db: string; ok: boolean; file?: string; error?: string }[]; error?: string }>
+      selectFolder: () => Promise<{ ok: boolean; folder?: string }>
     }
   }
 }
@@ -66,6 +68,9 @@ export default function App() {
   const [folder, setFolder] = useState('');
   const [backingUp, setBackingUp] = useState(false);
   const [results, setResults] = useState<{ db: string; ok: boolean; file?: string; error?: string }[]>([]);
+  const [serverInfo, setServerInfo] = useState<{ productVersion?: string; productLevel?: string; edition?: string; year?: string } | null>(null);
+  const { t, lang, setLang } = useI18n();
+  const stepsLabels = useMemo(() => [t('steps.connection'), t('steps.databases'), t('steps.target'), t('steps.backup')], [lang]);
 
   const [order, setOrder] = useState<Order>('asc');
   const [orderBy, setOrderBy] = useState<'name'>('name');
@@ -83,13 +88,14 @@ export default function App() {
     try {
       const res = await window.api?.testConnection({ server, user, password });
       if (res?.ok) {
+        setServerInfo(res.info || null);
         setConnected(true);
         setActiveStep(1);
         const dbs = await window.api?.listDatabases({ server, user, password });
         if (dbs?.ok && dbs.databases) setDatabases(dbs.databases);
-        else setError(dbs?.error || 'Veritabanı listesi alınamadı');
+        else setError(t('errors.dbListFail'));
       } else {
-        setError(res?.error || 'Bağlantı başarısız');
+        setError(res?.error || t('errors.connectionFail'));
       }
     } catch (e: any) {
       setError(e?.message || String(e));
@@ -112,7 +118,7 @@ export default function App() {
     try {
       const res = await window.api?.backupDatabases({ server, user, password, databases: selected, folder });
       if (res?.ok && res.results) setResults(res.results);
-      else setError(res?.error || 'Yedekleme sırasında hata oluştu');
+      else setError(res?.error || t('errors.backupFailed'));
     } catch (e: any) {
       setError(e?.message || String(e));
     } finally {
@@ -168,11 +174,15 @@ export default function App() {
           <Stack direction="row" spacing={2} alignItems="center">
             <BackupIcon fontSize="large" />
             <Box>
-              <Typography variant="h4">ITCONF SQL Yedekleme</Typography>
+              <Typography variant="h4">{t('app.title')}</Typography>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Bağlan, veritabanlarını yönet ve güvenle .bak yedekleri al.
+                {t('app.subtitle')}
               </Typography>
             </Box>
+            <Select size="small" value={lang} onChange={(e) => setLang(e.target.value as any)} variant="outlined" sx={{ ml: 'auto', color: '#fff', minWidth: 120 }}>
+              <MenuItem value="tr">{t('lang.turkish')}</MenuItem>
+              <MenuItem value="en">{t('lang.english')}</MenuItem>
+            </Select>
           </Stack>
         </Container>
       </Box>
@@ -182,7 +192,7 @@ export default function App() {
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Stepper activeStep={activeStep} alternativeLabel>
-              {steps.map((label, idx) => (
+              {stepsLabels.map((label, idx) => (
                 <Step key={label} completed={idx < activeStep}>
                   <StepLabel>{label}</StepLabel>
                 </Step>
@@ -195,16 +205,21 @@ export default function App() {
         <Card elevation={4} sx={{ mb: 3 }}>
           <CardContent>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField label="Sunucu (IP veya HOST\\INSTANCE)" value={server} onChange={e => setServer(e.target.value)} fullWidth />
-              <TextField label="Kullanıcı Adı" value={user} onChange={e => setUser(e.target.value)} fullWidth />
-              <TextField label="Şifre" type="password" value={password} onChange={e => setPassword(e.target.value)} fullWidth />
+              <TextField label={t('labels.server')} value={server} onChange={e => setServer(e.target.value)} fullWidth />
+              <TextField label={t('labels.username')} value={user} onChange={e => setUser(e.target.value)} fullWidth />
+              <TextField label={t('labels.password')} type="password" value={password} onChange={e => setPassword(e.target.value)} fullWidth />
             </Stack>
             <Stack direction="row" spacing={2} sx={{ mt: 2 }} alignItems="center">
               <Button variant="contained" color="primary" onClick={handleTest} disabled={!canTest || testing} startIcon={<CheckCircleIcon />}>
-                {testing ? 'Test Ediliyor...' : 'Bağlantıyı Test Et'}
+                {testing ? t('buttons.testing') : t('buttons.testConnection')}
               </Button>
               {connected && (
-                <Chip color="success" label="Bağlantı Başarılı" />
+                <>
+                  <Chip color="success" label={t('chips.connected')} />
+                  {serverInfo?.year && (
+                    <Chip color="info" label={`${t('labels.sqlServer')} ${serverInfo.year}${serverInfo.edition ? ` • ${serverInfo.edition}` : ''}`} />
+                  )}
+                </>
               )}
             </Stack>
             {testing && <LinearProgress sx={{ mt: 2 }} />}
@@ -219,15 +234,15 @@ export default function App() {
           <CardContent>
             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
               <StorageIcon color="primary" />
-              <Typography variant="h6">Veritabanları</Typography>
-              <Chip label={`${databases.length} toplam`} variant="outlined" />
+              <Typography variant="h6">{t('sections.databases')}</Typography>
+              <Chip label={`${databases.length} ${t('chips.total')}`} variant="outlined" />
             </Stack>
             {connected ? (
               <>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
                   <TextField
-                    label="Ara"
-                    placeholder="Veritabanı adı"
+                    label={t('search.label')}
+                    placeholder={t('search.placeholder')}
                     value={filter}
                     onChange={e => setFilter(e.target.value)}
                     fullWidth
@@ -246,7 +261,7 @@ export default function App() {
                         </TableCell>
                         <TableCell sortDirection={order}>
                           <Button color="inherit" onClick={handleRequestSort}>
-                            Ad
+                            {t('table.name')}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -277,7 +292,7 @@ export default function App() {
                 />
               </>
             ) : (
-              <Alert severity="info">Bağlantı kurmadan liste alınamaz.</Alert>
+              <Alert severity="info">{t('info.needConnection')}</Alert>
             )}
           </CardContent>
         </Card>
@@ -287,18 +302,18 @@ export default function App() {
           <CardContent>
             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
               <FolderOpenIcon color="secondary" />
-              <Typography variant="h6">Hedef Klasör</Typography>
-              <Tooltip title="SQL Server, yedek dosyayı sunucuda oluşturur. Sunucunun erişebildiği bir yol seçin.">
+              <Typography variant="h6">{t('sections.targetFolder')}</Typography>
+              <Tooltip title={t('tooltip.backupInfo')}>
                 <Chip label="Bilgi" variant="outlined" />
               </Tooltip>
             </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField fullWidth label="Klasör Yolu" value={folder} onChange={e => setFolder(e.target.value)} />
-              <Button variant="outlined" onClick={pickFolder}>Klasör Seç</Button>
+              <TextField fullWidth label={t('labels.folderPath')} value={folder} onChange={e => setFolder(e.target.value)} />
+              <Button variant="outlined" onClick={pickFolder}>{t('buttons.pickFolder')}</Button>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                {t('caption.examples')}
+              </Typography>
             </Stack>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Örn. Sunucu diski: <code>C:\\SQLBackups</code> veya paylaşım: <code>\\\\SUNUCU\\Paylasim\\Yedekler</code>
-            </Typography>
           </CardContent>
         </Card>
 
@@ -307,9 +322,9 @@ export default function App() {
           <CardContent>
             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
               <BackupIcon color="success" />
-              <Typography variant="h6">Yedekleme</Typography>
+              <Typography variant="h6">{t('sections.backup')}</Typography>
               <Divider flexItem orientation="vertical" />
-              <Chip label={`Seçili: ${selected.length}`} color={selected.length ? 'primary' : 'default'} />
+              <Chip label={`${t('chips.selected')}: ${selected.length}`} color={selected.length ? 'primary' : 'default'} />
             </Stack>
             <Stack direction="row" spacing={2}>
               <Button
@@ -317,7 +332,7 @@ export default function App() {
                 disabled={!connected || selected.length === 0 || !folder || backingUp}
                 onClick={handleBackup}
               >
-                {backingUp ? 'Yedekleniyor...' : 'Seçili Veritabanlarını Yedekle'}
+                {backingUp ? t('buttons.backingUp') : t('buttons.backupSelected')}
               </Button>
             </Stack>
 
@@ -325,7 +340,7 @@ export default function App() {
 
             {results.length > 0 && (
               <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle1">Sonuçlar</Typography>
+                <Typography variant="subtitle1">{t('sections.results')}</Typography>
                 {results.map(r => (
                   <Card key={r.db} sx={{ mt: 1 }}>
                     <CardContent>

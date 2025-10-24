@@ -87,3 +87,29 @@ frontend/
 ## Katkı ve Lisans
 - Her türlü katkıya açıktır; PR açabilirsiniz.
 - Lisans: MIT (repo kökünde LICENSE mevcut).
+
+## Güncelleme Notları
+
+### v1.2.0 - Türkçe/İngilizce Dil Desteği ve SQL Server Sürüm Bilgisi
+**Tarih:** Ocak 2025
+
+#### Yeni Özellikler
+- **Çoklu Dil Desteği**: Türkçe ve İngilizce arasında geçiş yapabilme
+  - Header'da dil seçici eklendi
+  - Tüm UI metinleri i18n ile çevrildi
+  - Dil tercihi localStorage'da saklanıyor
+- **SQL Server Sürüm Bilgisi**: Bağlantı başarılı olduğunda SQL Server sürümü görüntüleniyor
+  - Sürüm yılı (2016, 2019, 2022 vb.) otomatik tespit ediliyor
+  - Edition bilgisi (Enterprise, Standard vb.) gösteriliyor
+  - Modern chip tasarımı ile kullanıcı dostu görünüm
+
+#### Teknik İyileştirmeler
+- `src/ui/i18n.tsx`: Yeni i18n provider ve çeviri sistemi
+- `electron/main.cjs`: SQL Server sürüm bilgisi sorgulaması eklendi
+- `src/ui/App.tsx`: Dil desteği ve sürüm bilgisi UI entegrasyonu
+- Material-UI Select component ile dil seçici
+
+#### Kullanım
+- Header'daki dil seçiciyi kullanarak Türkçe ↔ İngilizce geçiş yapın
+- SQL Server'a bağlandığınızda sürüm bilgisi otomatik görüntülenir
+- Dil tercihiniz tarayıcıda saklanır ve bir sonraki açılışta hatırlanır
