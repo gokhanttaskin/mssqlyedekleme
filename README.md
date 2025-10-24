@@ -1,5 +1,7 @@
 # MSSQL Yedekleme Desktop Uygulaması
 
+[![ff}](https://i.hizliresim.com/f9ir5da.png)](https://hizliresim.com/f9ir5da)
+
 Modern bir React + Electron masaüstü uygulaması. SQL Server (MSSQL) sunucunuza bağlanır, kullanıcı veritabanlarını listeler, yedekleme hedef klasörünü seçtirir ve tek tuşla `.bak` dosyası üretir.
 
 ## Özellikler
